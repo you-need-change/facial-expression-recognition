@@ -24,13 +24,12 @@ from PIL import Image
 import urllib.request
 
 
-# Suppress FutureWarning
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 train_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\train'
 test_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\test'
 
-# Function to load images from a folder
+# 从文件夹加载图片
 def load_images_from_folder(folder):
     images = []
     labels = []
@@ -43,17 +42,17 @@ def load_images_from_folder(folder):
                 labels.append(label)
     return images, labels
 
-# Load images and labels from train and test folders
+# 从训练和测试文件夹加载图片和标签
 train_images, train_labels = load_images_from_folder(train_folder)
 test_images, test_labels = load_images_from_folder(test_folder)
 
-# Convert lists to numpy arrays
+# 把list转换为numpy中的array
 train_images = np.array(train_images)
 train_labels = np.array(train_labels)
 test_images = np.array(test_images)
 test_labels = np.array(test_labels)
 
-# Verify the shape of the datasets
+# 检查数据集的shape
 print("Train images shape:", train_images.shape)
 print("Train labels shape:", train_labels.shape)
 print("Test images shape:", test_images.shape)
@@ -61,56 +60,55 @@ print("Test labels shape:", test_labels.shape)
 
 from imblearn.over_sampling import SMOTE
 
-# Identify the indices of "Disgust" and "Surprise" classes
+# 数据增强
+
+# 指定'disgust'和'surprise'类的索引
 disgust_indices = np.where(train_labels == "disgust")[0]
 surprise_indices = np.where(train_labels == "surprise")[0]
 
-# Combine the indices of both classes
+# 合并下标
 indices_to_oversample = np.concatenate([disgust_indices, surprise_indices])
 
-# Extract images and labels for the selected indices
+# 从指定的索引提取image和label
 X_to_oversample = train_images[indices_to_oversample]
 y_to_oversample = train_labels[indices_to_oversample]
 
-# Reshape the images to 2D (if needed)
 X_to_oversample_2d = X_to_oversample.reshape(X_to_oversample.shape[0], -1)
 
-# Define the oversampling strategy
 oversample = SMOTE()
 
-# Apply SMOTE to the selected classes
+# 将SMOTE应用到选定的类别上
 X_resampled, y_resampled = oversample.fit_resample(X_to_oversample_2d, y_to_oversample)
 
-# Reshape the oversampled data back to its original shape
+# 将oversample后的数据reshape到原来的形状
 X_resampled = X_resampled.reshape(-1, *train_images.shape[1:])
 
-# Check the new class distribution
+# 输出新的类的分布
 unique, counts = np.unique(y_resampled, return_counts=True)
 print(dict(zip(unique, counts)))
 
-# Filter oversampled data for "disgust" class
+# 选择oversample中的disgust类的索引
 disgust_resampled_indices = np.where(y_resampled == "disgust")[0]
 
-# Define the maximum number of samples for each class
 max_surprise_samples = 500
 max_disgust_samples = 2000
 
-# Identify the indices of the "surprise" and "disgust" classes in the resampled data
+# 在resample的数据中指定surprise和disgust类的索引
 surprise_indices = np.where(y_resampled == "surprise")[0]
 disgust_indices = np.where(y_resampled == "disgust")[0]
 
-# Select the first 500 samples for "surprise" and the first 1500 samples for "disgust"
+# 选择前500个surprise类和前1500个disgust类
 selected_surprise_indices = surprise_indices[:max_surprise_samples]
 selected_disgust_indices = disgust_indices[:max_disgust_samples]
 
-# Concatenate the original train images with the selected oversampled images
+# 将oversample的images合并到原始的images中
 final_train_images = np.concatenate([train_images, X_resampled[selected_surprise_indices], X_resampled[selected_disgust_indices]], axis=0)
 
-# Create labels for the selected oversampled images
+# 为选择的oversample数据创建标签
 selected_surprise_labels = np.full(len(selected_surprise_indices), "surprise")
 selected_disgust_labels = np.full(len(selected_disgust_indices), "disgust")
 
-# Concatenate the original train labels with the selected oversampled labels
+# 将oversample的标签合并到原始的标签中
 final_train_labels = np.concatenate([train_labels, selected_surprise_labels, selected_disgust_labels], axis=0)
 
 print('final_train_images.shape: ', final_train_images.shape, 'final_train_lables.shape: ', final_train_labels.shape)
@@ -198,7 +196,7 @@ test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('device:', device)
 
-# Instantiate the model
+# 初始化模型
 num_classes = 7
 model = CNN2(num_classes)
 model.to(device)
@@ -220,10 +218,10 @@ def train(epoch):
     for inputs, target in train_loader:
         inputs, target = inputs.to(device), target.to(device)
 
-        # Zero the parameter gradients
+        # 梯度清零
         optimizer.zero_grad()
 
-        # Forward pass
+        # 前馈
         outputs = model(inputs)
 
         # 计算预测值
@@ -239,7 +237,7 @@ def train(epoch):
         running_loss += loss.item()
         correct += (pred == target).sum().item()
 
-    # 保存网络模型结构
+    # 保存网络模型结构，从第48轮开始每隔2轮保存个模型
     if epoch >= 46 and epoch % 2 == 0:
         torch.save(model.state_dict(), './model/fer_model_' + str(epoch) + '.pth')
 
@@ -256,31 +254,32 @@ true_labels = []
 predicted_labels = []
 
 def test():
-    #  Evaluate the model
+
     model.eval()
 
     correct, total = 0, 0
 
+    # 测试时不需要计算梯度
     with torch.no_grad():
         # Iterate over the dataset or batches
         for inputs, labels in test_loader:
-            # Forward pass
+            # 前馈
 
             inputs, labels = inputs.to(device), labels.to(device)
 
             outputs = model(inputs)
 
-            # Get predicted labels
+            # 得到预测值
             _, predicted = torch.max(outputs.data, 1)
 
-            # Append true and predicted labels to lists
+            # 将真实值和预测值添加到list中
             true_labels.extend(labels.cpu().numpy())
             predicted_labels.extend(predicted.cpu().numpy())
 
-            # Count total number of samples
+            # 算出sample的总数量
             total += labels.size(0)
 
-            # Count number of correct predictions
+            # 算出正确预测的数量
             correct += (predicted == labels).sum().item()
 
         accuracy = 100 * correct / total
@@ -294,6 +293,7 @@ for epoch in range(70):
 
 torch.save(model.state_dict(), './model/fer_model_final.pth')
 
+# 绘制训练的损失值和准确度，测试过程中的准确度
 def print_plot1(train_plot, vaild_plot, train_text, vaild_text, ac, name, i):
     x = [i for i in range(1, len(train_plot) + 1)]
     plt.figure(i + 1)
