@@ -61,258 +61,182 @@ print('device:', device)
 model = CNN2(7)
 model.load_state_dict(torch.load('./model/fer_model_52.pth'))
 model.to(device)
-#
-class_names = ['angry', 'diguest', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
-# def process_live_video(face_Cascade):
-#
-#     print("Model has been loaded")
-#
-#     frame_window = 10
-#
-#     # class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
-#
-#     emotion_window = []
-#
-#     cap = cv2.VideoCapture(0)
-#
-#     if not cap.isOpened():
-#         print("Error: Failed to open camera.")
-#         return
-#
-#     while True:
-#         ret, frame = cap.read()
-#         if not ret:
-#             print("Error: Failed to capture frame.")
-#             break
-#
-#         cap.set(cv2.CAP_PROP_AUDIO_POS, 0.3)
-#         # Convert frame to grayscale for face detection
-#         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#
-#         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=10, minSize=(30, 30))
-#
-#         for (x, y, w, h) in faces:
-#             # Crop face region
-#
-#             print('x:', x, 'y:', y, 'w:', w, 'h:', h)
-#             face_img = frame[y:y + h, x:x + w]
-#
-#             # Convert face_img to PIL image
-#             face_img_pil = Image.fromarray(cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB))
-#             face_img_resized = face_img_pil.resize((48, 48))
-#             face_img_gray = face_img_resized.convert('L')
-#
-#             # Convert PIL image to NumPy array
-#             face_img_np = np.array(face_img_gray)
-#             face_img_tensor = torch.tensor(face_img_np, dtype=torch.float).unsqueeze(0).unsqueeze(0).to(
-#                 'cuda' if torch.cuda.is_available() else 'cpu')
-#
-#             # Send face image tensor to the model
-#             with torch.no_grad():
-#                 outputs = model(face_img_tensor)
-#
-#             # Get predicted emotion label
-#             _, predicted = torch.max(outputs, 1)
-#             predicted_label = class_names[predicted.item()]
-#
-#             # Draw rectangle around detected face and display predicted emotion label
-#             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-#
-#             emotion_window.append(predicted_label)
-#
-#             if len(emotion_window) >= frame_window:
-#                 emotion_window.pop(0)
-#
-#             try:
-#                 # 获得出现次数最多的分类
-#                 emotion_mode = mode(emotion_window)
-#             except:
-#                 continue
-#
-#             # Draw the main text in orange
-#             cv2.putText(frame, emotion_mode, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
-#
-#             # Draw slightly offset text to create a bold effect in orange
-#             cv2.putText(frame, emotion_mode, (x + 1, y - 9), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
-#             cv2.putText(frame, emotion_mode, (x + 2, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
-#
-#         print(frame.shape)
-#
-#         cv2.imshow('FRAME', frame)
-#
-#         key = cv2.waitKey(1)
-#         if key == 27:  # exit on ESC
-#             break
-#
-#     cap.release()
-#     cv2.destroyAllWindows()
+def process_live_video(face_Cascade):
 
-def img_recognition(face_casecade, picture):
+    print("Model has been loaded")
 
-    img = cv2.imread(picture)
+    frame_window = 10
 
-    # Convert frame to grayscale for face detection
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=10, minSize=(30, 30))
+    emotion_window = []
 
-    for (x, y, w, h) in faces:
-        # Crop face region
-        print('x:', x, 'y:', y, 'w:', w, 'h:', h)
-        face_img = img[y:y + h, x:x + w]
+    cap = cv2.VideoCapture(0)
 
-        # Convert face_img to PIL image
-        face_img_pil = Image.fromarray(cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB))
-        face_img_resized = face_img_pil.resize((48, 48))
-        face_img_gray = face_img_resized.convert('L')
+    if not cap.isOpened():
+        print("Error: Failed to open camera.")
+        return
 
-        # Convert PIL image to NumPy array
-        face_img_np = np.array(face_img_gray)
-        face_img_tensor = torch.tensor(face_img_np, dtype=torch.float).unsqueeze(0).unsqueeze(0).to(
-            'cuda' if torch.cuda.is_available() else 'cpu')
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Failed to capture frame.")
+            break
 
-        # Send face image tensor to the model
-        with torch.no_grad():
-            outputs = model(face_img_tensor)
+        cap.set(cv2.CAP_PROP_AUDIO_POS, 0.3)
+        # 将frame转换成灰度
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Get predicted emotion label
-        _, predicted = torch.max(outputs, 1)
-        predicted_label = class_names[predicted.item()]
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=10, minSize=(30, 30))
 
-        # Draw rectangle around detected face and display predicted emotion label
-        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        for (x, y, w, h) in faces:
+            # 裁剪区域
 
-        # Draw the main text in orange
-        cv2.putText(img, predicted_label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 165, 255), 2)
+            face_img = frame[y:y + h, x:x + w]
 
-        # Draw slightly offset text to create a bold effect in orange
-        cv2.putText(img, predicted_label, (x + 1, y - 9), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 165, 255), 2)
-        cv2.putText(img, predicted_label, (x + 2, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 165, 255), 2)
+            # 将face_img转换成PIL
+            face_img_pil = Image.fromarray(cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB))
+            face_img_resized = face_img_pil.resize((48, 48))
+            face_img_gray = face_img_resized.convert('L')
 
-        new_img = picture_path + 'bq_' + img1
+            # 将PIL转换成numpy中的array
+            face_img_np = np.array(face_img_gray)
+            face_img_tensor = torch.tensor(face_img_np, dtype=torch.float).unsqueeze(0).unsqueeze(0).to(
+                'cuda' if torch.cuda.is_available() else 'cpu')
 
-        cv2.imwrite(new_img, img)
+            # 将face image送入模型
+            with torch.no_grad():
+                outputs = model(face_img_tensor)
+
+            # 得到预测的表情标签
+            _, predicted = torch.max(outputs, 1)
+            predicted_label = class_names[predicted.item()]
+
+            # 在脸上化矩形框，显示预测的标签
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+            emotion_window.append(predicted_label)
+
+            if len(emotion_window) >= frame_window:
+                emotion_window.pop(0)
+
+            try:
+                # 获得出现次数最多的分类
+                emotion_mode = mode(emotion_window)
+            except:
+                continue
+
+            # 用橙色显示主要文字
+            cv2.putText(frame, emotion_mode, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
+
+            # 创造橙色效果
+            cv2.putText(frame, emotion_mode, (x + 1, y - 9), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
+            cv2.putText(frame, emotion_mode, (x + 2, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
+
+        print(frame.shape)
+
+        cv2.imshow('FRAME', frame)
+
+        key = cv2.waitKey(1)
+        if key == 27:  # exit on ESC
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 
-# test_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\test'
-#
-# # Function to load images from a folder
-# def load_images_from_folder(folder):
-#     images = []
-#     labels = []
-#     for emotion_folder in os.listdir(folder):
-#         label = emotion_folder
-#         for filename in os.listdir(os.path.join(folder, emotion_folder)):
-#             img = cv2.imread(os.path.join(folder, emotion_folder, filename), cv2.IMREAD_GRAYSCALE)
-#             if img is not None:
-#                 images.append(img)
-#                 labels.append(label)
-#     return images, labels
-#
-# # Load images and labels from train and test folders
-# test_images, test_labels = load_images_from_folder(test_folder)
-#
-# # Convert lists to numpy arrays
-# test_images = np.array(test_images)
-# test_labels = np.array(test_labels)
-#
-# # Verify the shape of the datasets
-# print("Test images shape:", test_images.shape)
-# print("Test labels shape:", test_labels.shape)
-#
-# #testing data
-# X_test_tensor = torch.tensor(test_images)
-# X_test_tensor = X_test_tensor.float()
-# X_test_tensor = torch.unsqueeze(X_test_tensor, 1)
-#
-# print('X_test_tensor.shape: ',X_test_tensor.shape, 'X_test_tensor.dtype: ', X_test_tensor.dtype)
-#
-# #testing data
-# label_encoder = LabelEncoder()
-# y_test_encoded = label_encoder.fit_transform(test_labels)
-# y_test_tensor = torch.tensor(y_test_encoded)
-#
-# class_names = label_encoder.classes_
-# print(class_names)
-#
-# test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
-# test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
-#
-# true_labels, predicted_labels = [], []
-#
-# def test():
-#     #  Evaluate the model
-#     model.eval()
-#
-#     correct, total = 0, 0
-#
-#     with torch.no_grad():
-#         # Iterate over the dataset or batches
-#         for inputs, labels in test_loader:
-#             # Forward pass
-#
-#             inputs, labels = inputs.to(device), labels.to(device)
-#
-#             outputs = model(inputs)
-#
-#             # Get predicted labels
-#             _, predicted = torch.max(outputs.data, 1)
-#
-#             # Append true and predicted labels to lists
-#             true_labels.extend(labels.cpu().numpy())
-#             predicted_labels.extend(predicted.cpu().numpy())
-#
-#             # Count total number of samples
-#             total += labels.size(0)
-#
-#             # Count number of correct predictions
-#             correct += (predicted == labels).sum().item()
-#
-#         accuracy = 100 * correct / total
-#         # test_acc.append(accuracy)
-#
-#         print('Accuray on test data is {:.2f}%'.format(accuracy))
-#
-# test()
-#
-# # Get the original class names
-# class_names = label_encoder.classes_
-#
-# # Generate confusion matrix
-# conf_matrix = confusion_matrix(true_labels, predicted_labels)
-#
-# # Plot confusion matrix with class names
-# plt.figure(figsize=(12, 6))
-# sns.heatmap(conf_matrix, annot=True, cmap="Blues", fmt="d", cbar=False,
-#             xticklabels=class_names, yticklabels=class_names)
-# plt.title("Confusion Matrix")
-# plt.xlabel("Predicted Label")
-# plt.ylabel("True Label")
-# plt.show()
+test_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\test'
 
-# Function to load images from a folder
-def load_images_from_folder(picture_path):
+# 从文件夹读取image和label
+def load_images_from_folder(folder):
     images = []
-    for filename in os.listdir(picture_path):
-        if filename is not None:
-            images.append(filename)
-    return images
+    labels = []
+    for emotion_folder in os.listdir(folder):
+        label = emotion_folder
+        for filename in os.listdir(os.path.join(folder, emotion_folder)):
+            img = cv2.imread(os.path.join(folder, emotion_folder, filename), cv2.IMREAD_GRAYSCALE)
+            if img is not None:
+                images.append(img)
+                labels.append(label)
+    return images, labels
+
+test_images, test_labels = load_images_from_folder(test_folder)
+
+# 将list转换成numpy中的array
+test_images = np.array(test_images)
+test_labels = np.array(test_labels)
+
+# 检查数据集的shape
+print("Test images shape:", test_images.shape)
+print("Test labels shape:", test_labels.shape)
+
+#testing data
+X_test_tensor = torch.tensor(test_images)
+X_test_tensor = X_test_tensor.float()
+X_test_tensor = torch.unsqueeze(X_test_tensor, 1)
+
+print('X_test_tensor.shape: ',X_test_tensor.shape, 'X_test_tensor.dtype: ', X_test_tensor.dtype)
+
+#testing data
+label_encoder = LabelEncoder()
+y_test_encoded = label_encoder.fit_transform(test_labels)
+y_test_tensor = torch.tensor(y_test_encoded)
+
+class_names = label_encoder.classes_
+print(class_names)
+
+test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+
+true_labels, predicted_labels = [], []
+
+def test():
+
+    model.eval()
+
+    correct, total = 0, 0
+
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            # 前馈
+
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+
+            # 得到预测值
+            _, predicted = torch.max(outputs.data, 1)
+
+            # 将实际标签和真实标签添加到list
+            true_labels.extend(labels.cpu().numpy())
+            predicted_labels.extend(predicted.cpu().numpy())
+
+            # 算samples的总数
+            total += labels.size(0)
+
+            # 算正确的预测数
+            correct += (predicted == labels).sum().item()
+
+        accuracy = 100 * correct / total
+
+        print('Accuray on test data is {:.2f}%'.format(accuracy))
+
+test()
+
+# 得到原始的类名
+class_names = label_encoder.classes_
+
+# 创造混淆矩阵
+conf_matrix = confusion_matrix(true_labels, predicted_labels)
+
+plt.figure(figsize=(12, 6))
+sns.heatmap(conf_matrix, annot=True, cmap="Blues", fmt="d", cbar=False,
+            xticklabels=class_names, yticklabels=class_names)
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.show()
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-# process_live_video(face_cascade)
-
-picture_path = './img/'
-
-pictures = load_images_from_folder(picture_path)
-
-for img1 in pictures:
-    picture = picture_path + img1
-    img_recognition(face_cascade, picture)
-
-#     print(picture)
-
-    # img = cv2.imread(picture)
-    #
-    # new_picture = picture_path + 'n' + img1
-    # cv2.imwrite(new_picture, img)
+process_live_video(face_cascade)
