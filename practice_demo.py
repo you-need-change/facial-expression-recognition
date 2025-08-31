@@ -52,11 +52,14 @@ train_labels = np.array(train_labels)
 test_images = np.array(test_images)
 test_labels = np.array(test_labels)
 
+unique, counts = np.unique(train_labels, return_counts=True)
+print(dict(zip(unique, counts)))
+
 # 检查数据集的shape
-print("Train images shape:", train_images.shape)
-print("Train labels shape:", train_labels.shape)
-print("Test images shape:", test_images.shape)
-print("Test labels shape:", test_labels.shape)
+# print("Train images shape:", train_images.shape)
+# print("Train labels shape:", train_labels.shape)
+# print("Test images shape:", test_images.shape)
+# print("Test labels shape:", test_labels.shape)
 
 from imblearn.over_sampling import SMOTE
 
@@ -84,8 +87,8 @@ X_resampled, y_resampled = oversample.fit_resample(X_to_oversample_2d, y_to_over
 X_resampled = X_resampled.reshape(-1, *train_images.shape[1:])
 
 # 输出新的类的分布
-unique, counts = np.unique(y_resampled, return_counts=True)
-print(dict(zip(unique, counts)))
+# unique, counts = np.unique(y_resampled, return_counts=True)
+# print(dict(zip(unique, counts)))
 
 # 选择oversample中的disgust类的索引
 disgust_resampled_indices = np.where(y_resampled == "disgust")[0]
@@ -110,6 +113,9 @@ selected_disgust_labels = np.full(len(selected_disgust_indices), "disgust")
 
 # 将oversample的标签合并到原始的标签中
 final_train_labels = np.concatenate([train_labels, selected_surprise_labels, selected_disgust_labels], axis=0)
+
+unique, counts = np.unique(final_train_labels, return_counts=True)
+print(dict(zip(unique, counts)))
 
 print('final_train_images.shape: ', final_train_images.shape, 'final_train_lables.shape: ', final_train_labels.shape)
 
