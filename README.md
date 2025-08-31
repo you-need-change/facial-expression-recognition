@@ -1,14 +1,33 @@
 # 人脸表情识别
-## practice_demo.py中的步骤
-### 1、数据集加载
+## 1、背景
+目前人们对表情识别的研究大都是从静态图像或者图像序列中提取表情特征，然后根据这些特征信息通过设计相应的分类算法把表情归为某一类别以完成分类任务。大多是分为三步，第一步预处理及人脸获取，第二步，特征提取，第三步，归类。将重点放在人脸整体上，将人脸整体进行分析处理，算法核心是降维处理。本文在此基础上将特征提取分为两步，将重点放在表情关键部分。人脸表情主要体现在眼睛、鼻子、嘴巴、眉毛四个关键部分，通过对这四个关键部分的定位，可以将人脸特征选择缩小至这些部位中。减少了大量计算量，同时也提高了识别率。先人脸特征点定位出人脸区域的关键部位，再对人脸区域的关键部位进行特征提取，而非对整体进行特征提取。经过特征提取，大量的冗余的数据被去除，空间维数大大降低。  
+  
+本次实验分为以下四部分：  
+
+人脸检测识别   找出图像中人脸的大概区域  
+
+人脸特征点定位   更加准确的定位出眼睛/眉毛等一些人脸区域的关键部位  
+
+表情特征提取   面部表情识别的核心步骤  
+  
+表情分类   通过设置机制对表情进行分类，将表情归入相应类别  
+  
+面部表情识别的基本框架如下：  
+<img width="802" height="685" alt="2025-08-31-224953" src="https://github.com/user-attachments/assets/7c89c904-6662-4650-83b0-1747996483e5" />
+   
+## 2、人脸表情识别模型设计
+### 2.1 数据集
+FER + 数据集是原始面部表情识别（FER）数据集的一个重要扩展,数据集来自Kaggle平台，下面是数据集的连接：  https://www.kaggle.com/datasets/msambare/fer2013  
+为了改进原始数据集的局限性，FER + 提供了更精细和细致的面部表情标签。虽然原始FER数据集将面部表情分类为六种基本情绪——快乐、悲伤、愤怒、惊讶、恐惧和厌恶——但FER + 根据这一基础更进一步引入了两个额外的类别：中性和蔑视。  
+<img width="698" height="139" alt="2025-08-31-202632" src="https://github.com/user-attachments/assets/f6007bbb-b546-485d-b8ff-17a01b25be4c" />
+
+数据集的文件布局为分为7个类，格式如下：
+<img width="1359" height="568" alt="屏幕截图 2025-08-31 230336" src="https://github.com/user-attachments/assets/36543c67-d9a3-403a-b1a7-ae172af2daf5" />
+
+
+### 2.2 数据集加载
+在人脸表情识别项目中，这段代码是数据预处理的关键一步，它负责将原始图像数据及其对应的表情类别信息读取到内存中，为后续的模型训练、验证和测试提供输入。通过这种方式，模型能够学习图像与表情标签之间的对应关系。这段代码的目的是从指定的文件夹中加载人脸表情数据集。它遍历每个以表情命名的子文件夹，将子文件夹名作为标签，然后逐一读取其中的灰度图像。
 ```
-# Suppress FutureWarning
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-train_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\train'
-test_folder = 'C:\\Users\\XIEMIAN\\Downloads\\Compressed\\archive\\test'
-
-# Function to load images from a folder
 def load_images_from_folder(folder):
     images = []
     labels = []
@@ -20,134 +39,58 @@ def load_images_from_folder(folder):
                 images.append(img)
                 labels.append(label)
     return images, labels
-
-# Load images and labels from train and test folders
-train_images, train_labels = load_images_from_folder(train_folder)
-test_images, test_labels = load_images_from_folder(test_folder)
-
-# Convert lists to numpy arrays
-train_images = np.array(train_images)
-train_labels = np.array(train_labels)
-test_images = np.array(test_images)
-test_labels = np.array(test_labels)
-
-# Verify the shape of the datasets
-print("Train images shape:", train_images.shape)
-print("Train labels shape:", train_labels.shape)
-print("Test images shape:", test_images.shape)
-print("Test labels shape:", test_labels.shape)
 ```
-输出
+通过Dataloader类构建训练集、测试集
 ```
-Train images shape: (28709, 48, 48)
-Train labels shape:`Train labels shape: (28709,)
-Test`Test images shape: (7178, 48, 48)
-Test labels shape: (7178,)
-```
-### 2、训练集数据过采样
-```
-# Identify the indices of "Disgust" and "Surprise" classes
-disgust_indices = np.where(train_labels == "disgust")[0]
-surprise_indices = np.where(train_labels == "surprise")[0]
-
-# Combine the indices of both classes
-indices_to_oversample = np.concatenate([disgust_indices, surprise_indices])
-
-# Extract images and labels for the selected indices
-X_to_oversample = train_images[indices_to_oversample]
-y_to_oversample = train_labels[indices_to_oversample]
-
-# Reshape the images to 2D (if needed)
-X_to_oversample_2d = X_to_oversample.reshape(X_to_oversample.shape[0], -1)
-
-# Define the oversampling strategy
-oversample = SMOTE()
-
-# Apply SMOTE to the selected classes
-X_resampled, y_resampled = oversample.fit_resample(X_to_oversample_2d, y_to_oversample)
-
-# Reshape the oversampled data back to its original shape
-X_resampled = X_resampled.reshape(-1, *train_images.shape[1:])
-
-# Check the new class distribution
-unique, counts = np.unique(y_resampled, return_counts=True)
-print(dict(zip(unique, counts)))
-
-# Filter oversampled data for "disgust" class
-disgust_resampled_indices = np.where(y_resampled == "disgust")[0]
-
-# Define the maximum number of samples for each class
-max_surprise_samples = 500
-max_disgust_samples = 2000
-
-# Identify the indices of the "surprise" and "disgust" classes in the resampled data
-surprise_indices = np.where(y_resampled == "surprise")[0]
-disgust_indices = np.where(y_resampled == "disgust")[0]
-
-# Select the first 500 samples for "surprise" and the first 1500 samples for "disgust"
-selected_surprise_indices = surprise_indices[:max_surprise_samples]
-selected_disgust_indices = disgust_indices[:max_disgust_samples]
-
-# Concatenate the original train images with the selected oversampled images
-final_train_images = np.concatenate([train_images, X_resampled[selected_surprise_indices], X_resampled[selected_disgust_indices]], axis=0)
-
-# Create labels for the selected oversampled images
-selected_surprise_labels = np.full(len(selected_surprise_indices), "surprise")
-selected_disgust_labels = np.full(len(selected_disgust_indices), "disgust")
-
-# Concatenate the original train labels with the selected oversampled labels
-final_train_labels = np.concatenate([train_labels, selected_surprise_labels, selected_disgust_labels], axis=0)
-
-print('final_train_images.shape: ', final_train_images.shape, 'final_train_lables.shape: ', final_train_labels.shape)
-```
-最终训练集图片
-![newplot (1)](https://github.com/you-need-change/facial-expression-recognition/assets/90135052/12f9a6f2-b47b-450f-9c23-41c04b40fb10)
-输出
-```
-final_train_images.shape:  (31209, 48, 48) final_train_lables.shape:  (31209,)
-```
-### 3、创建模型和DataLoader
-```
-# training data
-X_train_tensor = torch.tensor(final_train_images)
-X_train_tensor = X_train_tensor.float()
-X_train_tensor = torch.unsqueeze(X_train_tensor, 1)
-
-print(X_train_tensor.shape, X_train_tensor.dtype)
-
-
-#testing data
-X_test_tensor = torch.tensor(test_images)
-X_test_tensor = X_test_tensor.float()
-X_test_tensor = torch.unsqueeze(X_test_tensor, 1)
-
-print(X_test_tensor.shape, X_test_tensor.dtype)
-
-#training data
-label_encoder = LabelEncoder()
-y_train_encoded = label_encoder.fit_transform(final_train_labels)
-y_train_tensor = torch.tensor(y_train_encoded)
-
-class_names = label_encoder.classes_
-print('class_names: ', class_names)
-
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-
-#testing data
-label_encoder = LabelEncoder()
-y_test_encoded = label_encoder.fit_transform(test_labels)
-y_test_tensor = torch.tensor(y_test_encoded)
-
-class_names = label_encoder.classes_
-print('class_names: ', class_names)
-
+```
+```
 test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 ```
-表情类别
-> class_names:  ['angry' 'disgust' 'fear' 'happy' 'neutral' 'sad' 'surprise']
-### 4、模型训练
+### 2.3 模型设计
+本项目使用的是基于CNN（卷积神经网络）的网络模型。构建的模型如下，输入图片 shape 为 48X48X1，经过一个3X3X32卷积核的卷积操作，经过BatchNorm操作和Relu激活层，经过5X5X32卷积操作和Relu激活层，经过2X2池化，以及dropout操作，得到一个 24X24X32 的 feature map 1（3X3卷积的padding为1，5X5卷积的padding为2，卷积的）。将 feature map 1经过一个 3X3X64 卷积核的卷积操作，以及BatchNorm操作和Relu激活层，经过5X5X64卷积操作和Relu激活层，再进行一次2X2的池化，以及dropout操作，得到一个 12X12X64 的 feature map 2。将feature map 2经过一个 3X3X128 卷积核的卷积操作，经过BatchNorm操作和Relu激活层，经过5X5X32卷积操作和Relu激活层，再进行一次 2X2 的池化，以及dropout操作，得到一个 6X6X128 的feature map 3。卷积完毕，数据即将进入全连接层。进入全连接层之前，要进行数据扁平化，将feature map 3拉一个成长度为 6X6X128=4608 的一维 tensor。
+```
+class CNN2(nn.Module):
+    def __init__(self, num_classes):
+        super(CNN2, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, padding=2)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.dropout1 = nn.Dropout2d(p=0.5)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv4 = nn.Conv2d(64, 64, kernel_size=5, padding=2)
+        self.dropout2 = nn.Dropout2d(p=0.5)
+        self.conv5 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv6 = nn.Conv2d(128, 128, kernel_size=5, padding=2)
+        self.dropout3 = nn.Dropout2d(p=0.5)
+        self.fc1 = nn.Linear(128 * 6 * 6, 256)
+        self.fc2 = nn.Linear(256, num_classes)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = self.dropout1(x)
+        x = F.relu(self.bn2(self.conv3(x)))
+        x = F.relu(self.conv4(x))
+        x = self.pool(x)
+        x = self.dropout2(x)
+        x = F.relu(self.bn3(self.conv5(x)))
+        x = F.relu(self.conv6(x))
+        x = self.pool(x)
+        x = self.dropout3(x)
+        x = x.view(-1, 128 * 6 * 6)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+```
+### 2.4 数据集的使用
+在项目中，train() 函数是核心部分，它的作用是让模型从大量数据中学习特征，逐步提高其识别各种人脸表情的能力。训练一般都采用以下几步操作，前向传播、计算损失、反向传播与优化。然后在最后保存模型，方便以后进行调用和部署。最后做性能监测，打印当前训练周期的平均损失和准确率。
 ```
 def train(epoch):
 
@@ -189,8 +132,8 @@ def train(epoch):
 
     print("Epoch {}\nLoss {:.4f} Accuracy {}/{} ({:.0f}%)"
           .format(epoch+1, average_loss, correct, len(train_dataset),accuracy))
-```
-### 5、模型测试
+```  
+在项目中，test() 函数的作用是客观地衡量模型性能。它使用独立于训练过程的数据来评估模型的泛化能力，确保模型在未见过的新数据上也能表现良好，从而验证模型的有效性和可靠性。测试需要做以下操作，测试和训练不同，不需要计算梯度，经过前向传播，性能计算来算出模型在测试集上的准确率。
 ```
 def test():
     #  Evaluate the model
@@ -225,7 +168,9 @@ def test():
 
         print('Accuray on test data is {:.2f}%'.format(accuracy))
 ```
-### 6、训练图像绘制
+
+### 2.5 模型评估
+使用matplotlib将训练、测试中的模型的精确度绘制成图像，便于分析训练的结果。
 ```
 def print_plot1(train_plot, vaild_plot, train_text, vaild_text, ac, name, i):
     x = [i for i in range(1, len(train_plot) + 1)]
@@ -238,58 +183,13 @@ def print_plot1(train_plot, vaild_plot, train_text, vaild_text, ac, name, i):
     plt.annotate("%.2f%%" % (vaild_plot[-1]) if ac else "%.4f" % (vaild_plot[-1]), xy=(x[-1], vaild_plot[-1]))
     plt.legend()
     plt.savefig(name)
-
-def print_plot(train_plot, train_text, ac, name, i):
-    x = [i for i in range(1, len(train_plot) + 1)]
-    plt.figure(i + 1)
-    plt.plot(x, train_plot, label=train_text)
-    plt.plot(x[-1], train_plot[-1], marker='o')
-    plt.annotate("%.2f%%" % (train_plot[-1]) if ac else "%.4f" % (train_plot[-1]), xy=(x[-1], train_plot[-1]))
-    plt.legend()
-    plt.savefig(name)
 ```
-![loss](https://github.com/you-need-change/facial-expression-recognition/assets/90135052/4c613e3a-dee1-44ab-a804-a45baebddd92)
+模型训练的结果图如下，可以看出模型在训练集和测试集上均能有不错的结果，相比训练集的91.82%的精确度，测试集的精确度为60.09%。
+![ac](https://github.com/user-attachments/assets/1ee4653e-aca6-4414-bd99-ed75182c1121)
 
-![ac](https://github.com/you-need-change/facial-expression-recognition/assets/90135052/542ed2bd-9f82-48f8-8487-1bddca3667e8)
-## run_me.py中的步骤
-### 1、测试模型
-```
-def test():
-    #  Evaluate the model
-    model.eval()
-
-    correct, total = 0, 0
-
-    with torch.no_grad():
-        # Iterate over the dataset or batches
-        for inputs, labels in test_loader:
-            # Forward pass
-
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            outputs = model(inputs)
-
-            # Get predicted labels
-            _, predicted = torch.max(outputs.data, 1)
-
-            # Append true and predicted labels to lists
-            true_labels.extend(labels.cpu().numpy())
-            predicted_labels.extend(predicted.cpu().numpy())
-
-            # Count total number of samples
-            total += labels.size(0)
-
-            # Count number of correct predictions
-            correct += (predicted == labels).sum().item()
-
-        accuracy = 100 * correct / total
-        test_acc.append(accuracy)
-
-        print('Accuray on test data is {:.2f}%'.format(accuracy))
-```
-输出
-![识别矩阵](https://github.com/you-need-change/facial-expression-recognition/assets/90135052/cf436a4b-9d33-4647-bb5f-de58811883bb)
-### 2、摄像头测试
+## 3、人脸表情识别的实现
+FER_live_cam() 函数对视频帧进行实时的面部情绪识别。首先，它设置了一个字典 emotion_dict，将数字情绪类别索引映射到可读的情绪标签。视频源被初始化，尽管也可以使用网络摄像头输入。该函数还初始化了一个输出视频写入器，用于保存带有情绪注释的处理过的帧。主要的情绪预测模型以pth格式保存，在使用nn.Module的 load_state_dict 方法读取并与cascade人脸检测模型一起加载。在逐帧处理视频时，人脸检测模型通过边界框识别出人脸。
+检测到的人脸在输入情绪识别模型之前经过预处理，包括调整大小和转换为灰度图像。通过从模型的输出分数中选择最大值确定识别出的情绪，并使用 class_names 将其映射到标签。然后，在检测到的人脸周围添加矩形框和情绪标签，将帧保存到输出视频文件中，并实时显示。用户可以通过按下 ‘q’ 键停止视频显示。一旦视频处理完成或中断，资源如视频捕获和写入器将被释放，并关闭任何打开的窗口。
 ```
 def process_live_video(face_Cascade):
 
@@ -363,15 +263,10 @@ def process_live_video(face_Cascade):
             # Draw slightly offset text to create a bold effect in orange
             cv2.putText(frame, emotion_mode, (x + 1, y - 9), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
             cv2.putText(frame, emotion_mode, (x + 2, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 165, 255), 2)
-
-        print(frame.shape)
-
-        cv2.imshow('FRAME', frame)
-
-        key = cv2.waitKey(1)
-        if key == 27:  # exit on ESC
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
 ```
+<img width="600" height="338" alt="2025-08-31-222420" src="https://github.com/user-attachments/assets/afe57dcf-5511-4d0f-a32b-e8008a2fbab2" />
+
+<img width="600" height="338" alt="2025-08-31-222449" src="https://github.com/user-attachments/assets/20332f1b-a834-4cb7-90d6-8a8a45c1f518" />
+
+## 4、总结
+本次实验采用一种新的人脸情绪识别流程，重点放在表情关键部分。大多数的人脸情绪识别算法将重点放在人脸整体上，将人脸整体进行分析处理，算法核心是CNN。本次实验采用人脸关键部位特征提取算法，经过 cascade 算法能够精确的定位人脸关键点部位，给后期处理减少了大量的数据量。本次实验的人脸特征向量选择采用了CNN神经网络，因为神经网络擅长处理二维图形信息，可以很好表达表情的变化。本项目设计了人脸表情识别视频处理器，方便识别人脸表情，使用深度学习的方式来检测面部表情。
